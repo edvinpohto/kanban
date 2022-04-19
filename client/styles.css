@@ -1,0 +1,19 @@
+body {
+    padding: 10px;
+    background-color:rgb(17, 17, 17);
+}
+
+.card {
+    width: 18rem;
+}
+
+#cards {
+    margin-top: 10pt;
+    width: 250px;
+}
+
+#stage-columns {
+    display: inline-flex;
+    justify-content: space-around;
+    margin-right: 10px;
+}

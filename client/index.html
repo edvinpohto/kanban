@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+    integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+    crossorigin="anonymous"
+  >
+  <link rel="stylesheet" href="styles.css">
+  <script src="request.js"></script>
+  <title>Kanban Board</title>
+</head>
+
+<body class="p-3 mb-2 text-white">
+<div id="app">
+
+  <div class="title p-3 mb-2 text-white">
+    <h1>Kanban</h1> <button type="button" class="btn btn-warning" @click="refreshPage" v-if="loadedBoard.title">Change Board</button>
+  </div>
+
+  <!-- Choosing board -->
+  <section id="boards-frame" v-if="!loadedBoard.title" class="shadow p-3 mb-2 bg-dark rounded text-white">
+    <h2>Boards</h2>
+
+    <!-- Board code selector -->
+    <div class="input-group mb-3">
+      <span class="input-group-text" id="basic-addon1">Board Code</span>
+      <input
+        type="text"
+        v-model="boardCode"
+        class="form-control"
+        placeholder="Code"
+      >
+      <button type="button" class="btn btn-warning" @click="handleLoadBoard">load existing board</button>
+    </div>
+
+    <!-- Board title selector -->
+    <div class="input-group mb-3">
+      <span class="input-group-text" id="boardTitleLabel">Board Title</span>
+      <input
+        type="text"
+        v-model="boardTitle"
+        class="form-control"
+        placeholder="Board Title"
+      >
+    </div>
+
+    <!-- Board columns selector -->
+    <div class=" mb-3" v-if="!loadedBoard.title">
+      <div>Column Width</div>
+      <div class="radio">
+        <label>
+          <input type="radio" name="optionsRadios" id="optionsRadios1" :value="true" v-model="defaultColumns">
+          Default columns
+        </label>
+      </div>
+      <div class="radio">
+        <label>
+          <input type="radio" name="optionsRadios" id="optionsRadios2" :value="false" v-model="defaultColumns">
+          No columns
+        </label>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-light" @click="addNewBoard">Add a new
+      board
+    </button>
+  </section>
+
+  <!-- Card columns and cards -->
+  <section
+  v-if="loadedBoard.columns&&loadedBoard.columns.length"
+  class="shadow p-3 mb-2 bg-dark rounded text-white"
+  v-if="loadedBoard.title"
+  >
+
+  <h2>Kanban board: {{loadedBoard.title}}</h2>
+
+    <!-- Columns -->
+    <div
+      class="card shadow p-3 mb-2 bg-secondary rounded text-white"
+      id="stage-columns"
+      v-for="(column,columnIndex) in loadedBoard.columns"
+      :key="column.title"
+    >
+      <h5 class="card-header">
+        {{column.title}}
+        <span class="btn btn-default text-white" @click="deleteColumn(columnIndex)">Delete</span>
+      </h5>
+      <div
+        id="cards"
+        class="card shadow p-3 mb-2 bg-light rounded text-black"
+        v-for="(card,cardIndex) in column.cards"
+        :key="card.title"
+      >
+        <!-- Cards -->
+        <div>
+          <span
+            v-if="(columnIndex+1)!=loadedBoard.columns.length"
+            class="btn btn-default"
+            @click="handleMove(columnIndex,cardIndex,card)"
+          >Move
+          </span>
+          <span class="btn btn-default" @click="handleDelete(columnIndex,cardIndex)">Delete</span>
+          <span class="btn btn-default" @click="handleSave(columnIndex,cardIndex,card)">Save</span>
+        </div>
+        <h6 class="card-header">
+          {{ card.title }}
+        </h6>
+        <div class="card-body">
+          <p class="card-text">{{ card.desc }}</p>
+          <div v-for="subTask in card.subTasks">
+            <label class="checkbox" :key="subTask.title">
+              <input type="checkbox" v-model="subTask.checked" :disabled="subTask.disabled">{{subTask.title}}
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Adding cards -->
+  <section v-if="loadedBoard.title&&loadedBoard.columns.length" class="shadow p-3 mb-2 bg-dark rounded text-white">
+    <h2>Add a card</h2>
+
+    <!-- Card title -->
+    <div class="input-group mb-3">
+      <span class="input-group-text" id="basic-addon1">Card title</span>
+      <input
+        type="text"
+        v-model="cardTitle"
+        class="form-control"
+        placeholder="Title"
+      >
+    </div>
+
+    <!-- Card description -->
+    <div class="input-group mb-3">
+      <span class="input-group-text" id="basic-addon1">Card description</span>
+      <input
+        v-model="cardDesc"
+        type="text"
+        class="form-control"
+        placeholder="Description"
+      >
+    </div>
+
+    <!-- Card subtask -->
+    <div class="input-group mb-3">
+      <span class="input-group-text" id="basic-addon1">New subtask</span>
+      <input
+        v-model="subTaskTitle"
+        type="text"
+        class="form-control"
+        placeholder="Subtask"
+      >
+      <button type="button" class="btn btn-warning" @click="createSubtask">Create subtask</button>
+    </div>
+    <div>
+      <ul>
+        <li v-for="item in subTasks">
+          {{item}}
+        </li>
+      </ul>
+    </div>
+
+    <button @click="handleAddCard" type="button" class="btn btn-light">Add card</button>
+  </section>
+
+  <!-- Creating a column -->
+  <section v-if="loadedBoard.title" class="shadow p-3 mb-2 bg-dark rounded text-white">
+    <h2>Create a column</h2>
+
+    <!-- Column title -->
+    <div class="input-group mb-3">
+      <span class="input-group-text" id="basic-addon1">Column title</span>
+      <input
+        type="text"
+        v-model="columnName"
+        class="form-control"
+        placeholder="Title"
+      >
+    </div>
+
+    <!-- Column position -->
+    <div class="input-group mb-3">
+      <span class="input-group-text" id="basic-addon1">Column position</span>
+      <input
+        @input="columnPosition>(loadedBoard.columns.length)?(columnPosition=loadedBoard.columns.length):null"
+        type="number"
+        :min="0"
+        v-model="columnPosition"
+        :max="loadedBoard.columns.length-1"
+        class="form-control"
+        placeholder="Code"
+      >
+    </div>
+
+    <button type="button" class="btn btn-light" @click="addColumn">Add a new column</button>
+  </section>
+</div>
+
+<script src="index.js"></script>
+</body>
+</html>
